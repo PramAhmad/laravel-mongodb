@@ -53,23 +53,30 @@ class PostController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'title' => 'required|unique:posts|string|max:255',
-            'desc' => 'required|string',
-            'slug' => 'required|unique:posts|string|max:255'
-        ]);
-
-        $post = DB::table('posts')->insert([
-            'title' => $request->title,
-            'desc' => $request->desc,
-            'slug' => $request->slug
-        ]);
-
-        if ($post) {
-            return response()->json(['message' => 'Post created successfully'], 201);
-        } else {
-            return response()->json(['message' => 'Post not created'], 500);
+        try{
+            $request->validate([
+                'title' => 'required|unique:posts|string|max:255',
+                'desc' => 'required|string',
+                'slug' => 'required|unique:posts|string|max:255'
+            ]);
+    
+            $post = DB::table('posts')->insert([
+                'title' => $request->title,
+                'desc' => $request->desc,
+                'slug' => $request->slug
+            ]);
+    
+            if ($post) {
+                return response()->json(['message' => 'Post berhasil di buat'], 201);
+            } 
+    
+            else {    
+                return response()->json(['message' => 'Post tidak berhasil di buat'], 500);
+            }
+        }catch(\Exception $e){
+            return response()->json(['message' => $e->getMessage()], 422);
         }
+      
     }
 
     /**
