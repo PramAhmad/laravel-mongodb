@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Validation\ValidationException;
 
 class PostController extends Controller
 {
@@ -20,22 +21,19 @@ class PostController extends Controller
         $page =  $request->input('page', 1);
     
         $posts = Cache::remember("posts:page:$page", 60, function () use ($perPage) {
-            return DB::table('posts')->paginate($perPage, ["title", "desc"]);
+            return DB::table('posts')->get();
         });
     
         if ($posts->count() > 0) {
             return response()->json([
-                'data' => $posts->items(),
-                'current_page' => $posts->currentPage(),
-              
-                'total' => $posts->total(),
-                'message' => 'Posts retrieved successfully',
+                'data' => $posts,
+                'message' => 'Posts berhasil di ambil',
                 'status' => 200
             ]);
         } else if ($posts->count() === 0){
-            return response()->json(['message' => 'page tidak ditemukan'], 404);
+            return response()->json(['message' => 'Page tidak ditemukan'], 404);
         } else {
-            return response()->json(['message' => 'Posts not found'], 404);
+            return response()->json(['message' => 'Post tidak ditemukan'], 404);
         }
     }
     
@@ -67,7 +65,11 @@ class PostController extends Controller
             ]);
     
             if ($post) {
-                return response()->json(['message' => 'Post berhasil di buat'], 201);
+                return response()->json([
+                    'data' => DB::table('posts')->where('title', $request->title)->first(),
+                    'message' => 'Post berhasil di buat',
+                    'status' => 201,
+                ]);
             } 
     
             else {    
@@ -82,15 +84,28 @@ class PostController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(string $slug)
     {
-        //
+        $post = Cache::remember("post:$slug", 60, function () use ($slug) {
+           return DB::table('posts')->where('slug', $slug)->first();
+        });
+    
+        if ($post) {
+            return response()->json([
+                'data' => $post,
+                "slug" => $slug,
+                'message' => 'Post berhasil di ambil',
+                'status' => 200
+            ]);
+        } else {
+            return response()->json(['message' => 'Post tidak di temukan'], 404);
+        }
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(string $slug)
     {
         //
     }
@@ -100,7 +115,42 @@ class PostController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+    
+       try {
+           
+        
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'desc' => 'required|string',
+                
+            ]);
+
+            $data  = array(
+                'title' => $request->title,
+                'desc' => $request->desc,
+                'slug' => $request->slug
+            );
+            $post = DB::table('posts')->find($id);
+
+            if (!$post) {
+                return response()->json(['message' => 'Post tidak di temukan'], 404);
+            }
+            $post = DB::table('posts')->where('_id', $id)->update($data);
+
+
+    
+            if ($post) {
+                return response()->json([
+                    'data' => DB::table('posts')->find($id),
+                    'message' => 'Post berhasil di update'], 200);
+            } else {
+                return response()->json(['message' => 'Post tidak berhasil di update'], 500);
+            }
+          } catch (ValidationException $e) {
+        return response()->json(['message' => $e->validator->errors()], 422);
+    } catch (\Exception $e) {
+        return response()->json(['message' => $e->getMessage()], 422);
+    }
     }
 
     /**
@@ -108,6 +158,15 @@ class PostController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $post = DB::table('posts')->find($id);
+        if (!$post) {
+            return response()->json(['message' => 'Post tidak di temukan'], 404);
+        }
+        $post = DB::table('posts')->where('_id', $id)->delete();
+        if ($post) {
+            return response()->json(['message' => 'Post berhasil di hapus'], 200);
+        } else {
+            return response()->json(['message' => 'Post tidak berhasil di hapus'], 500);
+        }
     }
 }
