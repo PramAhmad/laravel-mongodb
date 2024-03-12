@@ -11,19 +11,17 @@ use Illuminate\Validation\ValidationException;
 
 class PostController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    
     public function index(Request $request)
     {
      
         $perPage = 100;
         $page =  $request->input('page', 1);
     
-        $posts = Cache::remember("posts:page:$page", 60, function () use ($perPage) {
-            return DB::table('posts')->get();
+        $posts = Cache::remember("posts:page:$page", 60, function () use ($perPage) {          
+            return DB::table("posts")->paginate($perPage);
         });
-    
+        
         if ($posts->count() > 0) {
             return response()->json([
                 'data' => $posts,
@@ -37,18 +35,11 @@ class PostController extends Controller
         }
     }
     
-
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        //
+        
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         try{
